@@ -4,6 +4,10 @@
 		"dockerfile": "Dockerfile",
 		"context": ".."
 	},
+  "postCreateCommand": [
+    "git config --global credential.helper store && echo https://github.com > ~/.git-credentials",
+    "git config --global --add safe.directory ${containerWorkspaceFolder}"
+  ],
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -13,7 +17,7 @@
 				"visualstudioexptteam.vscodeintellicode",
 				"redhat.vscode-yaml",
 				"esbenp.prettier-vscode",
-				"GitHub.vscode-pull-request-github",
+				"GitHub.vscode-pull-request-github"
 			],
 			"settings": {
 				"python.experiments.optOutFrom": [
