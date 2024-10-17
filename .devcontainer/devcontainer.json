@@ -4,10 +4,7 @@
 		"dockerfile": "Dockerfile",
 		"context": ".."
 	},
-  "postCreateCommand": [
-    "git config --global credential.helper store && echo https://github.com > ~/.git-credentials",
-    "git config --global --add safe.directory ${containerWorkspaceFolder}"
-  ],
+    "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder} && script/setup",
 	"customizations": {
 		"vscode": {
 			"extensions": [

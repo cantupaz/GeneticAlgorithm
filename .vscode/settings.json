@@ -1,4 +1,6 @@
 {
+    "security.workspace.trust.enabled": true,
+    "security.workspace.trust.startupPrompt": "never",
     "editor.formatOnSave": true,
     "editor.formatOnPaste": true,
     "files.trimTrailingWhitespace": true,
