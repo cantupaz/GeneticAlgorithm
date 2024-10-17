@@ -49,22 +49,32 @@ class Individual:
         return f"{self.sex} {self.fitness:<5.2f} {self.attractiveness:<5.2f} {genes} "
 
 class Population:
+    """Holds a population."""
     def __init__(self, popsize:int, length:int) -> None:
         self.size = popsize
         self.length = length
         self.inds:list[Individual] = [Individual(length) for i in range(popsize)]
 
     def evaluate(self, evaluator:Evaluator) -> None:
+        """Evaluate every individual in the population."""
         for i in range(self.size):
             self.inds[i].evaluate(evaluator)
 
     def stats(self):
-
+        """Return a dict with statistics about the population (min, max, avg fitness)."""
         sum_fitness = sum(ind.fitness for ind in self.inds)
 
         return {"max": max(self.inds, key=lambda x: x.fitness),
                 "min": min(self.inds, key=lambda x: x.fitness),
                 "avg": sum_fitness / self.size if self.size > 0 else float('inf')}
+
+    def __getitem__(self, index:int)->Individual:
+        """Returns the ith individual."""
+        return self.inds[index]
+
+    def __setitem__(self, index:int, value:Individual):
+        """Set the i-th individual."""
+        self.inds[index] = value
 
     def print(self):
         for i in range(self.size):
@@ -75,15 +85,16 @@ class Selection:
     def __init__(self):
         pass
 
-    def select(self, source:Population, destination:Population) -> None:
+    def select(self, source:Population)->Population:
         pass
 
 class TournamentSelection(Selection):
     def __init__(self, k:int=2):
         self.tournament_size = k
 
-    def select(self, source:Population, destination:Population)->None:
+    def select(self, source:Population) ->Population:
 
+        destination = Population(source.size, source.length)
         dest_index: int = 0
         indices: list[int] = list(range(source.size))
         for _ in range(self.tournament_size):
@@ -94,15 +105,31 @@ class TournamentSelection(Selection):
                 selected_indices = indices[i:i + self.tournament_size]
 
                 # Determine the winner based on the fitness values
-                winner = max(selected_indices, key=lambda idx: source.inds[idx].fitness)
+                winner = max(selected_indices, key=lambda idx: source[idx].fitness)
 
-                destination.inds[dest_index] = source.inds[winner]
+                destination[dest_index] = source[winner]
                 dest_index += 1
+        return destination
+
+class TruncationSelection(Selection):
+    def __init__(self, fraction: float, property: str="fitness"):
+        self.fraction: float = fraction
+        self.property:str = property
+
+    def select(self, source:Population)->Population:
+        """Return a population with the top individuals based on the factor indicated."""
+
+        dest_size = int(source.size * self.fraction)
+        destination = Population(dest_size, source.length)
+        source.inds = sorted(source.inds, key=lambda ind: getattr(ind, self.property), reverse=True) # desc order
+        for i in range(dest_size):
+            destination[i] = source[i]
+        return destination
 
 
 
 class MultiPointCrossover:
-    def __init__(self, num_crossover_points:int=2, crossover_rate = 1.0):
+    def __init__(self, num_crossover_points:int=2, crossover_rate:float = 1.0):
         self.num_crossover_points = num_crossover_points
         self.crossover_rate: float = crossover_rate
 
@@ -149,23 +176,28 @@ class Reproduction:
     def __init__(self, crossover: MultiPointCrossover):
         self.crossover = crossover
 
-    def reproduce(self, input:Population)->Population:
-        """Produce a new population."""
-        result = Population(input.size, input.length)
+    def reproduce(self, input:Population, offspring: int)->Population:
+        """Produce a new population with the number of offspring indicated. The input population does not
+        have to be of the same size as the required offspring."""
+        result = Population(offspring, input.length)
+
+        # create a randomly shuffled list of parents
         indices: list[int] = list(range(input.size))
-
-
-        dest_index:int = 0
-        for _ in range(0,2):
+        parents: list[int] = []
+        while len(parents) < offspring*2:
             random.shuffle(indices)
-            for i in range(0,result.size,2):
-                result.inds[dest_index] = self.crossover.crossover(input.inds[indices[i]], input.inds[indices[i+1]])
+            parents.extend(indices)
+        parents = parents[:offspring*2]
+
+        # mate two random parents
+        for i in range(0, offspring*2, 2):
+            result[int(i/2)] = self.crossover.crossover(input[parents[i]], input[parents[i+1]])
 
         return result
 
 class SexualReproduction(Reproduction):
 
-    def reproduce(self, input:Population)->Population:
+    def reproduce(self, input:Population, offspring: int)->Population:
         """Produce a new population."""
         result = Population(input.size, input.length)
 
@@ -187,22 +219,19 @@ class GeneticAlgorithm:
         self.population:Population = Population(self.popsize, self.length)
 
     def run(self):
-        selected = Population(self.popsize, self.length)
+        # selected = Population(self.popsize, self.length)
 
         self.population.evaluate(self.evaluator)
         stats = self.population.stats()
         print(f"avg {stats['avg']} max {stats['max'].fitness} min {stats['min'].fitness}")
 
-        for generation in range(0,5):
-            self.selection.select(self.population, selected)
-            stats = selected.stats()
-            print(f"selected avg {stats['avg']} max {stats['max'].fitness} min {stats['min'].fitness}")
-
-            self.population = self.reproduce.reproduce(selected)
+        for generation in range(0,20):
+            selected = self.selection.select(self.population)
+            self.population = self.reproduce.reproduce(selected, self.popsize)
             self.population.evaluate(self.evaluator)
             stats = self.population.stats()
             print(f"new   avg {stats['avg']} max {stats['max'].fitness} min {stats['min'].fitness}")
-            self.population.print()
+            # self.population.print()
 
 
 
@@ -210,10 +239,10 @@ class GeneticAlgorithm:
 
 def main():
     config = {}
-    config["popsize"] = 10
+    config["popsize"] = 20
     config["length"] = 20
     config["evaluator"] = OneMax() #TrapK(k=4)
-    config["selection"] = TournamentSelection(k=2)
+    config["selection"] = TruncationSelection(0.5) #TournamentSelection(k=2)
     config["reproduction"] = Reproduction(MultiPointCrossover(num_crossover_points=2, crossover_rate=1.0))
 
     ga = GeneticAlgorithm(config)
