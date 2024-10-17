@@ -38,7 +38,7 @@ class Individual:
         self.genes:list[int] = [random.randint(0,1) for i in range(length)]
         self.fitness:float = 0.0
         self.sex:int = random.randint(0,1)
-        self.attractiveness:int = random.randint(0,100)
+        self.appeal:int = random.randint(0,100)
 
     def evaluate(self, evaluator:Evaluator):
         self.fitness = evaluator.evaluate(self.genes)
@@ -46,7 +46,7 @@ class Individual:
     def __str__(self):
 
         genes = ''.join(map(str,self.genes))
-        return f"{self.sex} {self.fitness:<5.2f} {self.attractiveness:<5.2f} {genes} "
+        return f"{self.sex} {self.fitness:<5.2f} {self.appeal:<5.2f} {genes} "
 
 class Population:
     """Holds a population."""
@@ -62,11 +62,17 @@ class Population:
 
     def stats(self):
         """Return a dict with statistics about the population (min, max, avg fitness)."""
-        sum_fitness = sum(ind.fitness for ind in self.inds)
 
-        return {"max": max(self.inds, key=lambda x: x.fitness),
-                "min": min(self.inds, key=lambda x: x.fitness),
-                "avg": sum_fitness / self.size if self.size > 0 else float('inf')}
+        sum_fitness = sum(ind.fitness for ind in self.inds)
+        sum_appeal = sum(ind.appeal for ind in self.inds)
+
+        return {"max_fitness": max(ind.fitness for ind in self.inds),
+                "min_fitness": min(ind.fitness for ind in self.inds),
+                "avg_fitness": sum_fitness / self.size if self.size > 0 else float('inf'),
+                "max_appeal": max(ind.appeal for ind in self.inds),
+                "min_appeal": min(ind.appeal for ind in self.inds),
+                "avg_appeal": sum_appeal / self.size if self.size > 0 else float('inf'),
+                "num_males": sum(ind.sex for ind in self.inds)}
 
     def __getitem__(self, index:int)->Individual:
         """Returns the ith individual."""
@@ -143,7 +149,7 @@ class MultiPointCrossover:
         # set up the offspring
         result = Individual(a.length)
         result.sex = random.randint(0,1)
-        result.attractiveness = random.choice([a.attractiveness, b.attractiveness])
+        result.appeal = random.choice([a.appeal, b.appeal])
         result.genes = []
 
         # Generate unique random crossover points
@@ -197,12 +203,65 @@ class Reproduction:
 
 class SexualReproduction(Reproduction):
 
+    def __init__(self, crossover, cohort_size: int, mating_criterion: str):
+        super().__init__(crossover)
+        self.cohort_size = cohort_size
+        self.mating_criterion = mating_criterion
+
+    def pick_mate(self, input:Population, female:int, males: list[int])->int:
+        """Returns the index of the selected mate."""
+        mate = -1
+        if self.mating_criterion == "max_appeal":
+            mate = max(males, key=lambda idx: input[idx].appeal)
+        elif self.mating_criterion == "closest_appeal":
+            mate =  min(males, key=lambda idx: abs(input[idx].appeal - input[female].appeal))
+        return mate
+
     def reproduce(self, input:Population, offspring: int)->Population:
         """Produce a new population."""
-        result = Population(input.size, input.length)
+        result = Population(offspring, input.length)
+
+        # the females will pick one male to mate amongst k candidates
+        # possible variations: pick the one with more appeal
+        # or with appeal closest to the female's appeal
+        males: list[int] = [i for i, ind in enumerate(input.inds) if ind.sex==1]
+        females: list[int] = [i for i, ind in enumerate(input.inds) if ind.sex==0]
+
+        # need to iterate this multiple times until we get enough offspring
+        current_offspring = 0
+        for i in range(int(offspring/len(females)) + 1):
+            self.mate_females(input, males, females, result, current_offspring, offspring)
+            # current_offspring += len(females) this is incremented inside the func
 
         return result
 
+
+    def mate_females(self, input, males, females, result, current_offspring, offspring):
+        # the females will pick one mate amongst k candidates. we will pick
+        # k males without replacement and reshuffle the list of males if needed
+
+        # Track the current position in the male_indices list
+        current_position = 0
+
+        for female in females:
+            if current_offspring == offspring:
+                break
+
+            # If there aren't enough males left in the list to pick k, reshuffle the males
+            if current_position + self.cohort_size > len(males):
+                random.shuffle(males)
+                current_position = 0
+
+            # Select k males from the current position
+            selected_males = males[current_position:current_position + self.cohort_size]
+
+            # Send the selected males and current female to the do_something function
+            mate = self.pick_mate(input, female, selected_males)
+            result[current_offspring] = self.crossover.crossover(input[female], input[mate])
+            current_offspring += 1
+
+            # Move the position forward by k
+            current_position += self.cohort_size
 
 
 
@@ -222,15 +281,13 @@ class GeneticAlgorithm:
         # selected = Population(self.popsize, self.length)
 
         self.population.evaluate(self.evaluator)
-        stats = self.population.stats()
-        print(f"avg {stats['avg']} max {stats['max'].fitness} min {stats['min'].fitness}")
+        print(self.population.stats())
 
         for generation in range(0,20):
             selected = self.selection.select(self.population)
             self.population = self.reproduce.reproduce(selected, self.popsize)
             self.population.evaluate(self.evaluator)
-            stats = self.population.stats()
-            print(f"new   avg {stats['avg']} max {stats['max'].fitness} min {stats['min'].fitness}")
+            print(self.population.stats())
             # self.population.print()
 
 
