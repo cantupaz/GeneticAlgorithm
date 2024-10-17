@@ -14,14 +14,13 @@
 				"redhat.vscode-yaml",
 				"esbenp.prettier-vscode",
 				"GitHub.vscode-pull-request-github",
-				"GitHub.copilot"
 			],
 			"settings": {
 				"python.experiments.optOutFrom": [
 					"pythonTestAdapter"
 				],
-				"python.defaultInterpreterPath": "/home/vscode/.local/os-venv/bin/python",
-				"python.pythonPath": "/home/vscode/.local/os-venv/bin/python",
+				"python.defaultInterpreterPath": "/home/vscode/.local/ga-venv/bin/python",
+				"python.pythonPath": "/home/vscode/.local/ga-venv/bin/python",
 				"python.terminal.activateEnvInCurrentTerminal": true,
 				"python.testing.pytestArgs": [
 					"--no-cov"
@@ -51,5 +50,5 @@
 			}
 		}
 	},
-	"onCreateCommand": "pre-commit install-hooks"
+	// "onCreateCommand": "pre-commit install-hooks"
 }
