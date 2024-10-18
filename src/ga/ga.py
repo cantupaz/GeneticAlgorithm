@@ -139,8 +139,30 @@ class TruncationSelection(Selection):
         return destination
 
 
+class Crossover:
+    pass
 
-class MultiPointCrossover:
+class UniformCrossover(Crossover):
+    def __init__(self, crossover_rate:float = 1.0):
+        self.crossover_rate: float = crossover_rate
+
+    def crossover(self, a: Individual, b: Individual) -> Individual:
+        """Crossover two individuals."""
+
+        if random.random() > self.crossover_rate:
+            return random.choice([a,b])
+
+        # set up the offspring
+        offspring = Individual(a.length)
+        offspring.sex = random.randint(0,1)
+        offspring.appeal = random.choice([a.appeal, b.appeal])
+
+        for i in range(a.length):
+            offspring.genes[i] = a.genes[i] if random.randint(0,1) else b.genes[i]
+
+        return offspring
+
+class MultiPointCrossover(Crossover):
     def __init__(self, num_crossover_points:int=2, crossover_rate:float = 1.0):
         self.num_crossover_points = num_crossover_points
         self.crossover_rate: float = crossover_rate
@@ -185,7 +207,7 @@ class MultiPointCrossover:
 
 
 class Reproduction:
-    def __init__(self, crossover: MultiPointCrossover):
+    def __init__(self, crossover: Crossover):
         self.crossover = crossover
 
     def reproduce(self, input:Population, offspring: int)->Population:
@@ -214,7 +236,7 @@ class SexualReproduction(Reproduction):
         # possible variations: pick the one with more appeal
         # or with appeal closest to the female's appeal
 
-    def __init__(self, crossover, cohort_size: int, mating_criterion: str):
+    def __init__(self, crossover: Crossover, cohort_size: int, mating_criterion: str):
         super().__init__(crossover)
         self.cohort_size = cohort_size
         self.mating_criterion = mating_criterion
@@ -343,19 +365,20 @@ def print_metrics_stats(stats):
 
 def main():
 
-    crossover = MultiPointCrossover(num_crossover_points=2, crossover_rate=1.0)
+    # crossover = MultiPointCrossover(num_crossover_points=2, crossover_rate=1.0)
+    crossover = UniformCrossover(crossover_rate=1.0)
     config = {}
-    config["popsize"] = 100
-    config["length"] = 80
+    config["popsize"] = 50
+    config["length"] = 100
     config["evaluator"] = OneMax() #TrapK(k=4)
     config["selection"] = TournamentSelection(k=2) #TruncationSelection(0.5)
-    config["reproduction"] = SexualReproduction(crossover, 5, "max_appeal") #Reproduction(crossover)
-    config["reproduction"] = Reproduction(crossover)
+    config["reproduction"] = SexualReproduction(crossover, 5, "max_appeal")
+    # config["reproduction"] = Reproduction(crossover)
     ga = GeneticAlgorithm(config)
 
     # run the GA multiple times and collect metrics
     stats = []
-    for i in range(0,30):
+    for i in range(0,1):
         ga.run()
         stats.append(ga.stats)
         # print(ga.stats)
