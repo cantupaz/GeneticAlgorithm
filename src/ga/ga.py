@@ -235,16 +235,17 @@ class SexualReproduction(Reproduction):
         # need to iterate multiple times over the set of females until we get enough offspring
         current_offspring = 0 # track how many offspring have been created so far
         for i in range(int(offspring/len(females)) + 1):
-            self.mate_females(input, males, females, result, current_offspring, offspring)
+            random.shuffle(males)
+            current_offspring = self.mate_females(input, males, females, result, current_offspring, offspring)
 
         return result
 
 
-    def mate_females(self, input, males, females, result, current_offspring, offspring):
+    def mate_females(self, input, males, females, result, current_offspring, offspring)->int:
         # the females will pick one mate amongst k candidates. we will pick
         # k males without replacement and reshuffle the list of males if needed
 
-        k = max(self.cohort_size, len(males))
+        k = min(self.cohort_size, len(males))
 
         # Track the current position in the male_indices list
         current_position = 0
@@ -269,6 +270,8 @@ class SexualReproduction(Reproduction):
 
             # Move the position forward by k
             current_position += k
+
+        return current_offspring
 
     def pick_mate(self, input:Population, female:int, males: list[int])->int:
         """Returns the index of the selected mate."""
@@ -297,13 +300,14 @@ class GeneticAlgorithm:
         self.population:Population = Population(self.popsize, self.length)
 
     def done(self)->bool:
-        return self.stats["generation"] >= 10
+        return self.stats["generation"] >= 30
 
     def run(self):
         self.init_GA()
         self.population.evaluate(self.evaluator)
         self.stats.update(self.population.stats())
         self.stats["generation"] = 0
+        # print(self.stats)
 
         while (not self.done()):
             selected = self.selection.select(self.population)
@@ -345,13 +349,13 @@ def main():
     config["length"] = 80
     config["evaluator"] = OneMax() #TrapK(k=4)
     config["selection"] = TournamentSelection(k=2) #TruncationSelection(0.5)
-    config["reproduction"] = SexualReproduction(crossover, 5, "closest_appeal") #Reproduction(crossover)
+    config["reproduction"] = SexualReproduction(crossover, 5, "max_appeal") #Reproduction(crossover)
     config["reproduction"] = Reproduction(crossover)
     ga = GeneticAlgorithm(config)
 
     # run the GA multiple times and collect metrics
     stats = []
-    for i in range(0,10):
+    for i in range(0,30):
         ga.run()
         stats.append(ga.stats)
         # print(ga.stats)
